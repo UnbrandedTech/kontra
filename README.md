@@ -1,6 +1,8 @@
 [![Version](https://badge.fury.io/js/kontra.svg)](https://badge.fury.io/js/kontra)
 [![Build Status](https://github.com/straker/kontra/actions/workflows/tests.yml/badge.svg)](https://github.com/straker/kontra/actions)
 
+**ICE Out; Abolish ICE**
+
 # Kontra.js
 
 A lightweight JavaScript gaming micro-library, optimized for js13kGames.
