@@ -9,6 +9,7 @@ describe('events', () => {
     expect(events.off).to.be.an('function');
     expect(events.emit).to.be.an('function');
     expect(events.query).to.be.an('function');
+    expect(events.once).to.be.an('function');
   });
 
   // --------------------------------------------------
@@ -133,6 +134,64 @@ describe('events', () => {
       }
 
       expect(fn).to.not.throw();
+    });
+  });
+
+  // --------------------------------------------------
+  // once
+  // --------------------------------------------------
+  describe('once', () => {
+    afterEach(() => {
+      delete events.callbacks.foo;
+    });
+
+    it('should fire the callback when the event is emitted', () => {
+      let spy = sinon.spy();
+      events.once('foo', spy);
+      events.emit('foo', 1, 2, 3);
+
+      expect(spy.calledOnceWith(1, 2, 3)).to.equal(true);
+    });
+
+    it('should remove the callback after it fires', () => {
+      let spy = sinon.spy();
+      events.once('foo', spy);
+      events.emit('foo');
+      events.emit('foo');
+      events.emit('foo');
+
+      expect(spy.callCount).to.equal(1);
+      expect(events.callbacks.foo).to.have.lengthOf(0);
+    });
+
+    it('should not clobber other listeners on the same event', () => {
+      let onceSpy = sinon.spy();
+      let onSpy = sinon.spy();
+      events.on('foo', onSpy);
+      events.once('foo', onceSpy);
+
+      events.emit('foo');
+      events.emit('foo');
+
+      expect(onceSpy.callCount).to.equal(1);
+      expect(onSpy.callCount).to.equal(2);
+    });
+
+    it('should return a canceller that removes the listener before fire', () => {
+      let spy = sinon.spy();
+      let cancel = events.once('foo', spy);
+      cancel();
+      events.emit('foo');
+
+      expect(spy.called).to.equal(false);
+      expect(events.callbacks.foo).to.have.lengthOf(0);
+    });
+
+    it('should not error when the canceller is called after the event has fired', () => {
+      let cancel = events.once('foo', () => {});
+      events.emit('foo');
+
+      expect(cancel).to.not.throw();
     });
   });
 

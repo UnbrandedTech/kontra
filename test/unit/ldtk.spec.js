@@ -605,6 +605,73 @@ describe('LDtk', () => {
     });
   });
 
+  describe('per-tile animation via customData', () => {
+    function projWithCustomData(customData) {
+      return project({
+        defs: {
+          tilesets: [tilesetDef({ customData })]
+        },
+        levels: [
+          level({
+            layerInstances: [
+              layer({ gridTiles: [{ px: [0, 0], t: 0, f: 0 }] })
+            ]
+          })
+        ]
+      });
+    }
+
+    it('should forward Tiled-shaped animation JSON to the output tileset', () => {
+      let config = LDtk(
+        projWithCustomData([
+          {
+            tileId: 2,
+            data: JSON.stringify({
+              animation: [
+                { tileid: 2, duration: 100 },
+                { tileid: 3, duration: 100 }
+              ]
+            })
+          }
+        ])
+      );
+      expect(config.tilesets[0].tiles).to.eql([
+        {
+          id: 2,
+          animation: [
+            { tileid: 2, duration: 100 },
+            { tileid: 3, duration: 100 }
+          ]
+        }
+      ]);
+    });
+
+    it('should ignore customData entries that are not valid JSON', () => {
+      let config = LDtk(
+        projWithCustomData([
+          { tileId: 0, data: 'this is just a label' },
+          { tileId: 1, data: '' }
+        ])
+      );
+      expect(config.tilesets[0].tiles).to.be.undefined;
+    });
+
+    it('should ignore JSON customData without an animation key', () => {
+      let config = LDtk(
+        projWithCustomData([
+          { tileId: 0, data: JSON.stringify({ collision: 'solid' }) }
+        ])
+      );
+      expect(config.tilesets[0].tiles).to.be.undefined;
+    });
+
+    it('should skip the customData scan when the tileset has none', () => {
+      // bare project with no customData field at all
+      let config = LDtk(project());
+      expect(config.tilesets[0].tiles).to.be.undefined;
+    });
+  });
+
   describe('config shape', () => {
     it('should produce width/height in tiles and tilewidth/tileheight in pixels', () => {
       let config = LDtk(

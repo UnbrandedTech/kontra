@@ -1,5 +1,5 @@
 import { getCanvas, getContext } from './core.js';
-import { on, query } from './events.js';
+import { on, once, query } from './events.js';
 import { clamp, getWorldRect } from './helpers.js';
 import { removeFromArray } from './utils.js';
 
@@ -181,6 +181,56 @@ class TileEngine {
     });
     // @endif
 
+    // @ifdef TILEENGINE_ANIMATED
+    // collect animated tiles from tilesets (Tiled-format). each
+    // entry maps a global gid to a live animation cursor; static
+    // tile engines (no animations) pay no runtime cost because the
+    // tick listener below is only registered if `animated` is non-
+    // empty, and the render-path lookup becomes a no-op
+    let animated = {};
+    tilesets.map(tileset => {
+      let { firstgid = 1, tiles: defs = [] } = tileset;
+      defs.map(def => {
+        if (def.animation) {
+          animated[firstgid + def.id] = {
+            frames: def.animation.map(f => ({
+              tileid: firstgid + f.tileid,
+              duration: f.duration
+            })),
+            // i = current frame index, t = ms accumulated in frame
+            i: 0,
+            t: 0
+          };
+        }
+      });
+    });
+    this._at = animated;
+
+    if (Object.keys(animated).length) {
+      // last-tick timestamp captured on first fire so that a long
+      // gap between construction and the first game-loop tick
+      // doesn't fast-forward every animation at once
+      let lt;
+      on('tick', () => {
+        let now = performance.now();
+        let dt = lt ? now - lt : 0;
+        lt = now;
+
+        let dirty;
+        Object.keys(animated).map(id => {
+          let a = animated[id];
+          a.t += dt;
+          while (a.t >= a.frames[a.i].duration) {
+            a.t -= a.frames[a.i].duration;
+            a.i = (a.i + 1) % a.frames.length;
+            dirty = 1;
+          }
+        });
+        if (dirty) this._d = 1;
+      });
+    }
+    // @endif
+
     // add all properties to the object, overriding any defaults
     Object.assign(this, {
       context: getContext(),
@@ -219,12 +269,12 @@ class TileEngine {
     // p = prerender
     if (this.context) {
       this._p();
+    } else {
+      once('init', () => {
+        this.context ??= getContext();
+        this._p();
+      });
     }
-
-    on('init', () => {
-      this.context ??= getContext();
-      this._p();
-    });
   }
 
   // @ifdef TILEENGINE_CAMERA
@@ -249,13 +299,21 @@ class TileEngine {
   // when clipping an image, sx and sy must be within the image
   // region, otherwise. Firefox and Safari won't draw it.
   // @see http://stackoverflow.com/questions/19338032/canvas-indexsizeerror-index-or-size-is-negative-or-greater-than-the-allowed-a
+  // mapwidth/mapheight are in unscaled pixels; if the user called
+  // context.scale(), the visible map extent is scaled too, so factor
+  // the transform's a/d (pure x/y scale) into the clamp.
   set sx(value) {
-    let max = Math.max(0, this.mapwidth - getCanvas().width);
+    let scale = getContext().getTransform().a;
+    let max = Math.max(0, this.mapwidth * scale - getCanvas().width);
     this._sx = clamp(0, max, value);
   }
 
   set sy(value) {
-    let max = Math.max(0, this.mapheight - getCanvas().height);
+    let scale = getContext().getTransform().d;
+    let max = Math.max(
+      0,
+      this.mapheight * scale - getCanvas().height
+    );
     this._sy = clamp(0, max, value);
   }
 
@@ -718,6 +776,13 @@ class TileEngine {
 
         tile &= ~FLIPPED_DIAGONALLY;
       }
+      // @endif
+
+      // @ifdef TILEENGINE_ANIMATED
+      // substitute an animated tile's current frame before the
+      // tileset lookup; flip bits have already been stripped above
+      let anim = this._at[tile];
+      if (anim) tile = anim.frames[anim.i].tileid;
       // @endif
 
       // find the tileset the tile belongs to

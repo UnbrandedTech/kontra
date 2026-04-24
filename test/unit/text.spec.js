@@ -1,5 +1,9 @@
 import Text, { TextClass } from '../../src/text.js';
 import { _reset, init, getContext } from '../../src/core.js';
+import {
+  callbacks,
+  _reset as resetEvents
+} from '../../src/events.js';
 
 // test-context:start
 let testContext = {
@@ -143,6 +147,16 @@ describe(
         init(canvas);
 
         expect(text._s).to.exist;
+      });
+
+      it('should not register an init listener when init has already fired', () => {
+        // issue #414: construction after init must not leak
+        resetEvents();
+        Text({ text: '' });
+
+        expect(callbacks.init).to.satisfy(
+          c => c == null || c.length == 0
+        );
       });
     });
 
@@ -301,8 +315,7 @@ describe(
               'sights'
             ]);
           });
-        }
-        else {
+        } else {
           it('should not calculate new lines and auto new lines', () => {
             let text = Text({
               text: 'Hello\nWorld,\nI must be going to see the\nsights',
@@ -518,8 +531,7 @@ describe(
 
           expect(spy.set.calledWith(2)).to.be.true;
         });
-      }
-      else {
+      } else {
         it('should not call strokeText', () => {
           let text = Text({
             text: 'Hello World',

@@ -100,6 +100,81 @@ describe(
           expect(animations.walk.clone.called).to.be.true;
         });
       }
+
+      if (testContext.SPRITE_ANIMATION) {
+        it('should honor the playAnimation constructor option (#418)', () => {
+          let animations = {
+            idle: {
+              width: 10,
+              height: 20,
+              start: sinon.spy(),
+              stop: sinon.spy(),
+              clone() {
+                return this;
+              }
+            },
+            walk: {
+              width: 10,
+              height: 20,
+              start: sinon.spy(),
+              stop: sinon.spy(),
+              clone() {
+                return this;
+              }
+            }
+          };
+
+          let sprite = Sprite({
+            animations,
+            playAnimation: 'walk'
+          });
+
+          expect(sprite.currentAnimation).to.equal(animations.walk);
+          expect(animations.walk.start.called).to.be.true;
+          // the `playAnimation` option is a local init var, not a
+          // real property on the sprite instance — it must not
+          // shadow the Sprite.prototype.playAnimation method
+          expect(sprite.playAnimation).to.be.a('function');
+        });
+      }
+
+      if (testContext.SPRITE_IMAGE) {
+        it('should accept a frame subregion and default width/height to it (#373)', () => {
+          let img = new Image();
+          img.width = 64;
+          img.height = 64;
+
+          let sprite = Sprite({
+            image: img,
+            frame: { x: 16, y: 32, width: 16, height: 16 }
+          });
+
+          expect(sprite.frame).to.eql({
+            x: 16,
+            y: 32,
+            width: 16,
+            height: 16
+          });
+          expect(sprite.width).to.equal(16);
+          expect(sprite.height).to.equal(16);
+        });
+
+        it('should allow overriding width/height while using a frame', () => {
+          let img = new Image();
+          img.width = 64;
+          img.height = 64;
+
+          let sprite = Sprite({
+            image: img,
+            frame: { x: 0, y: 0, width: 16, height: 16 },
+            width: 32,
+            height: 32
+          });
+
+          expect(sprite.width).to.equal(32);
+          expect(sprite.height).to.equal(32);
+        });
+      }
     });
 
     // --------------------------------------------------
@@ -207,6 +282,35 @@ describe(
           sprite.render();
 
           expect(sprite.context.drawImage.called).to.be.true;
+        });
+
+        it('should draw the frame subregion when set (#373)', () => {
+          let img = new Image();
+          img.width = 64;
+          img.height = 64;
+
+          let sprite = Sprite({
+            image: img,
+            frame: { x: 16, y: 32, width: 16, height: 16 }
+          });
+
+          sinon.stub(sprite.context, 'drawImage').callsFake(noop);
+          sprite.render();
+
+          // 9-arg form: image, sx, sy, sw, sh, dx, dy, dw, dh
+          expect(
+            sprite.context.drawImage.calledWith(
+              img,
+              16,
+              32,
+              16,
+              16,
+              0,
+              0,
+              16,
+              16
+            )
+          ).to.be.true;
         });
       }
 

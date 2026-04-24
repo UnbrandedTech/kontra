@@ -8,7 +8,9 @@ import { GameObjectClass } from './gameObject.js';
  * @param {Object} [properties] - Properties of the sprite.
  * @param {String} [properties.color] - Fill color for the game object if no image or animation is provided.
  * @param {HTMLImageElement|HTMLCanvasElement} [properties.image] - Use an image to draw the sprite.
+ * @param {{x: Number, y: Number, width: Number, height: Number}} [properties.frame] - A subregion of `image` to draw (useful for drawing one cell of a static tilesheet). If set, `width`/`height` default to the frame size.
  * @param {{[name: String] : Animation}} [properties.animations] - An object of [Animations](api/animation) from a [Spritesheet](api/spriteSheet) to animate the sprite.
+ * @param {String} [properties.playAnimation] - Name of the animation to start playing on construction (defaults to the first entry in `animations`).
  */
 class Sprite extends GameObjectClass {
   /**
@@ -31,18 +33,31 @@ class Sprite extends GameObjectClass {
     image,
 
     /**
-     * The width of the sprite. If the sprite is a [rectangle sprite](api/sprite#rectangle-sprite), it uses the passed in value. For an [image sprite](api/sprite#image-sprite) it is the width of the image. And for an [animation sprite](api/sprite#animation-sprite) it is the width of a single frame of the animation.
+     * A subregion of the [image](api/sprite#image) to draw instead of the whole thing — useful when the sprite's visual is a single cell of a larger tilesheet. `x` and `y` are the pixel offset into the image; `width` and `height` are the cell size. If set, the sprite's own `width`/`height` default to the frame's dimensions.
+     * @memberof Sprite
+     * @property {{x: Number, y: Number, width: Number, height: Number}} frame
+     */
+    frame,
+
+    /**
+     * The width of the sprite. If the sprite is a [rectangle sprite](api/sprite#rectangle-sprite), it uses the passed in value. For an [image sprite](api/sprite#image-sprite) it is the width of the image (or [frame](api/sprite#frame) if set). And for an [animation sprite](api/sprite#animation-sprite) it is the width of a single frame of the animation.
      * @memberof Sprite
      * @property {Number} width
      */
-    width = image ? image.width : undefined,
+    width = frame ? frame.width : image ? image.width : undefined,
 
     /**
-     * The height of the sprite. If the sprite is a [rectangle sprite](api/sprite#rectangle-sprite), it uses the passed in value. For an [image sprite](api/sprite#image-sprite) it is the height of the image. And for an [animation sprite](api/sprite#animation-sprite) it is the height of a single frame of the animation.
+     * The height of the sprite. If the sprite is a [rectangle sprite](api/sprite#rectangle-sprite), it uses the passed in value. For an [image sprite](api/sprite#image-sprite) it is the height of the image (or [frame](api/sprite#frame) if set). And for an [animation sprite](api/sprite#animation-sprite) it is the height of a single frame of the animation.
      * @memberof Sprite
      * @property {Number} height
      */
-    height = image ? image.height : undefined,
+    height = frame ? frame.height : image ? image.height : undefined,
+    // @endif
+
+    // @ifdef SPRITE_ANIMATION
+    // destructured under a different local name so Object.assign
+    // in super.init doesn't shadow the method of the same name
+    playAnimation: _animation,
     // @endif
 
     ...props
@@ -50,11 +65,16 @@ class Sprite extends GameObjectClass {
     super.init({
       // @ifdef SPRITE_IMAGE
       image,
+      frame,
       width,
       height,
       // @endif
       ...props
     });
+
+    // @ifdef SPRITE_ANIMATION
+    if (_animation) this.playAnimation(_animation);
+    // @endif
   }
 
   // @ifdef SPRITE_ANIMATION
@@ -161,13 +181,28 @@ class Sprite extends GameObjectClass {
   draw() {
     // @ifdef SPRITE_IMAGE
     if (this.image) {
-      this.context.drawImage(
-        this.image,
-        0,
-        0,
-        this.image.width,
-        this.image.height
-      );
+      let { image, frame, width, height } = this;
+      if (frame) {
+        this.context.drawImage(
+          image,
+          frame.x,
+          frame.y,
+          frame.width,
+          frame.height,
+          0,
+          0,
+          width,
+          height
+        );
+      } else {
+        this.context.drawImage(
+          image,
+          0,
+          0,
+          image.width,
+          image.height
+        );
+      }
     }
     // @endif
 

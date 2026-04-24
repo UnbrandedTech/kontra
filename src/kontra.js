@@ -13,7 +13,7 @@ export {
 } from './assets.js';
 export { default as Button, ButtonClass } from './button.js';
 export { init, getCanvas, getContext } from './core.js';
-export { on, off, emit, query } from './events.js';
+export { on, off, emit, once, query } from './events.js';
 export { default as GameLoop } from './gameLoop.js';
 export {
   default as GameObject,

@@ -38,6 +38,7 @@ describe('kontra', () => {
     expect(kontraExports.on).to.exist;
     expect(kontraExports.off).to.exist;
     expect(kontraExports.emit).to.exist;
+    expect(kontraExports.once).to.exist;
     expect(kontraExports.query).to.exist;
   });
 

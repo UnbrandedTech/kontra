@@ -5,7 +5,11 @@ import {
   getContext,
   getCanvas
 } from '../../src/core.js';
-import { emit } from '../../src/events.js';
+import {
+  emit,
+  callbacks,
+  _reset as resetEvents
+} from '../../src/events.js';
 import { noop, srOnlyStyle } from '../../src/utils.js';
 import { collides } from '../../src/helpers.js';
 
@@ -179,6 +183,36 @@ describe('scene', () => {
       init(canvas);
 
       expect(scene.context).to.equal(canvas.getContext('2d'));
+    });
+
+    it('should not register an init listener when init has already fired', () => {
+      // issue #414: construction after init must not leak
+      scene.destroy();
+      resetEvents();
+      Scene({ id: 'myId' });
+
+      expect(callbacks.init).to.satisfy(
+        c => c == null || c.length == 0
+      );
+    });
+
+    it('should cancel its init listener when destroyed before init fires', () => {
+      // verify Scene wires up the once() canceller in destroy — so
+      // if a scene is torn down before init runs, init doesn't
+      // revive it by setting context and the camera rect
+      _reset();
+      resetEvents();
+
+      let preDestroy = Scene({ id: 'preDestroy' });
+      expect(preDestroy.context).to.be.undefined;
+
+      preDestroy.destroy();
+
+      let canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 600;
+      init(canvas);
+
+      expect(preDestroy.context).to.be.undefined;
     });
 
     it('should not override context when set if kontra.init is called after created', () => {

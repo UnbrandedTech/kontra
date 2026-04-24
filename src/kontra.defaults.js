@@ -13,7 +13,7 @@ import {
 } from './assets.js';
 import Button, { ButtonClass } from './button.js';
 import { init, getCanvas, getContext } from './core.js';
-import { on, off, emit, query } from './events.js';
+import { on, off, emit, once, query } from './events.js';
 import GameLoop from './gameLoop.js';
 import GameObject, { GameObjectClass } from './gameObject.js';
 import {
@@ -106,6 +106,7 @@ let kontra = {
   on,
   off,
   emit,
+  once,
   query,
 
   GameLoop,

@@ -105,6 +105,27 @@ export default function LDtk(project, options = {}) {
     firstgidByUid[uid] = nextGid;
     let cols = def.__cWid;
     let rows = def.__cHei;
+
+    // LDtk has no native per-tile animation, but TilesetDef
+    // .customData is a free-form string field. Users who want
+    // animated tiles write Tiled-shaped JSON there
+    // (e.g. `{"animation":[{"tileid":0,"duration":100}]}`); we
+    // forward those entries to TileEngine's animated-tile support.
+    // Invalid JSON or entries without an `animation` key are
+    // ignored so customData keeps working for any other use.
+    let tiles = [];
+    (def.customData || []).map(entry => {
+      let parsed;
+      try {
+        parsed = JSON.parse(entry.data);
+      } catch {
+        return;
+      }
+      if (parsed && parsed.animation) {
+        tiles.push({ id: entry.tileId, animation: parsed.animation });
+      }
+    });
+
     tilesets.push({
       firstgid: nextGid,
       image: new URL(def.relPath, base).href,
@@ -112,7 +133,8 @@ export default function LDtk(project, options = {}) {
       tileheight: def.tileGridSize,
       margin: def.padding,
       spacing: def.spacing,
-      columns: cols
+      columns: cols,
+      ...(tiles.length && { tiles })
     });
     nextGid += cols * rows;
   });

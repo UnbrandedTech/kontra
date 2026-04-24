@@ -26,6 +26,7 @@ const context = {
   TEXT_RTL: true,
   TEXT_ALIGN: true,
   TEXT_STROKE: true,
+  TILEENGINE_ANIMATED: true,
   TILEENGINE_CAMERA: true,
   TILEENGINE_DYNAMIC: true,
   TILEENGINE_LDTK: true,

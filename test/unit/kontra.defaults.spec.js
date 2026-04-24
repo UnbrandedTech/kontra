@@ -37,6 +37,7 @@ describe('kontra.defaults', () => {
     expect(kontra.on).to.exist;
     expect(kontra.off).to.exist;
     expect(kontra.emit).to.exist;
+    expect(kontra.once).to.exist;
     expect(kontra.query).to.exist;
   });
 

@@ -55,6 +55,18 @@ animSprite.playAnimation('walk');
 let anims = animSprite.animations;
 let currAnim = animSprite.currentAnimation;
 
+// frame subregion (#373)
+let frameSprite = kontra.Sprite({
+  image,
+  frame: { x: 32, y: 16, width: 16, height: 16 }
+});
+
+// starting animation via constructor option (#418)
+let presetAnimSprite = kontra.Sprite({
+  animations: spriteSheet.animations,
+  playAnimation: 'walk'
+});
+
 // extends
 class CustomSprite extends kontra.SpriteClass {
   constructor(properties?: object) {
