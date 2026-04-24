@@ -28,6 +28,7 @@ const context = {
   TEXT_STROKE: true,
   TILEENGINE_CAMERA: true,
   TILEENGINE_DYNAMIC: true,
+  TILEENGINE_LDTK: true,
   TILEENGINE_QUERY: true,
   TILEENGINE_TILED: true,
   VECTOR_SUBTRACT: true,
@@ -120,7 +121,10 @@ function distModule() {
     .pipe(gulp.dest('.'));
 }
 
-gulp.task('build', gulp.series(buildIife, buildModule, 'build:docs', 'build:ts'));
+gulp.task(
+  'build',
+  gulp.series(buildIife, buildModule, 'build:docs', 'build:ts')
+);
 
 gulp.task('dist', gulp.series('build', distIife, distModule));
 

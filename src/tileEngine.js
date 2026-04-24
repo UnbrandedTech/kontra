@@ -1,5 +1,5 @@
 import { getCanvas, getContext } from './core.js';
-import { on } from './events.js';
+import { on, query } from './events.js';
 import { clamp, getWorldRect } from './helpers.js';
 import { removeFromArray } from './utils.js';
 
@@ -140,21 +140,15 @@ class TileEngine {
     // resolve linked files (source, image)
     tilesets.map(tileset => {
       // get the url of the Tiled JSON object (in this case, the
-      // properties object)
-      let { __k, location } = window;
-      let url = (__k ? __k.dm.get(properties) : '') || location.href;
+      // properties object). the asset loader (if present) registers
+      // a 'dm' resolver that maps a loaded data object back to its
+      // source url; falling back to the page url matches the
+      // behaviour of inline Tiled data
+      let url = query('dm', properties) || location.href;
 
       let { source } = tileset;
       if (source) {
-        // @ifdef DEBUG
-        if (!__k) {
-          throw Error(
-            `You must use "load" or "loadData" to resolve tileset.source`
-          );
-        }
-        // @endif
-
-        let resolvedSorce = __k.d[__k.u(source, url)];
+        let resolvedSorce = query('d', new URL(source, url).href);
 
         // @ifdef DEBUG
         if (!resolvedSorce) {
@@ -172,15 +166,7 @@ class TileEngine {
       let { image } = tileset;
       /* eslint-disable-next-line no-restricted-syntax */
       if ('' + image === image) {
-        // @ifdef DEBUG
-        if (!__k) {
-          throw Error(
-            `You must use "load" or "loadImage" to resolve tileset.image`
-          );
-        }
-        // @endif
-
-        let resolvedImage = __k.i[__k.u(image, url)];
+        let resolvedImage = query('i', new URL(image, url).href);
 
         // @ifdef DEBUG
         if (!resolvedImage) {

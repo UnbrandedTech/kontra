@@ -62,6 +62,31 @@ export function emit(event, ...args) {
   (callbacks[event] || []).map(fn => fn(...args));
 }
 
+/**
+ * Call callback functions for the event in order and return the first non-nullish value returned by a callback. This turns the event bus into a service locator: modules can register resolvers via [on](api/events#on) without statically importing each other, keeping bundles tree-shakeable. Used internally to resolve asset lookups from [TileEngine](api/tileEngine) without coupling it to the asset loader.
+ *
+ * ```js
+ * import { on, query } from 'kontra';
+ *
+ * on('findUser', id => users[id]);
+ * let user = query('findUser', 42);
+ * ```
+ * @function query
+ *
+ * @param {String} event - Name of the event.
+ * @param {...*} args - Comma separated list of arguments passed to all callbacks.
+ *
+ * @returns {*} The first non-nullish value returned by a callback, or `undefined` if no callback returned a value.
+ */
+export function query(event, ...args) {
+  let result;
+  return (
+    (callbacks[event] || []).find(
+      fn => (result = fn(...args)) != null
+    ) && result
+  );
+}
+
 // expose for testing
 export function _reset() {
   Object.keys(callbacks).map(key => {

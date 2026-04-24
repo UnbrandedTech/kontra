@@ -37,6 +37,7 @@ describe('kontra.defaults', () => {
     expect(kontra.on).to.exist;
     expect(kontra.off).to.exist;
     expect(kontra.emit).to.exist;
+    expect(kontra.query).to.exist;
   });
 
   it('should add gameLoop api', () => {
@@ -92,6 +93,10 @@ describe('kontra.defaults', () => {
     expect(kontra.onKey).to.exist;
     expect(kontra.offKey).to.exist;
     expect(kontra.keyPressed).to.exist;
+  });
+
+  it('should add LDtk api', () => {
+    expect(kontra.LDtk).to.exist;
   });
 
   it('should add plugin api', () => {

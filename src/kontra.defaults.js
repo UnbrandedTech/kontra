@@ -13,7 +13,7 @@ import {
 } from './assets.js';
 import Button, { ButtonClass } from './button.js';
 import { init, getCanvas, getContext } from './core.js';
-import { on, off, emit } from './events.js';
+import { on, off, emit, query } from './events.js';
 import GameLoop from './gameLoop.js';
 import GameObject, { GameObjectClass } from './gameObject.js';
 import {
@@ -48,6 +48,7 @@ import {
   depthSort
 } from './helpers.js';
 import { initInput, onInput, offInput } from './input.js';
+import LDtk from './ldtk.js';
 import {
   keyMap,
   initKeys,
@@ -105,6 +106,7 @@ let kontra = {
   on,
   off,
   emit,
+  query,
 
   GameLoop,
   GameObject,
@@ -149,6 +151,8 @@ let kontra = {
   onKey,
   offKey,
   keyPressed,
+
+  LDtk,
 
   registerPlugin,
   unregisterPlugin,

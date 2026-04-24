@@ -1,4 +1,4 @@
-import { emit } from './events.js';
+import { emit, on } from './events.js';
 
 /**
  * A promise based asset loader for loading images, audio, and data files. An `assetLoaded` event is emitted after each asset is fully loaded. The callback for the event is passed the asset and the url to the asset as parameters.
@@ -181,18 +181,18 @@ export let audioAssets = {};
 export let dataAssets = {};
 
 /**
- * Add a global kontra object so TileEngine can access information about the
- * loaded assets when kontra is loaded in parts rather than as a whole (e.g.
- * `import { load, TileEngine } from 'kontra';`)
+ * Register asset resolvers on the event bus so TileEngine can look
+ * up loaded assets without a static import, which would force the
+ * loader into every bundle that uses TileEngine. Lazy so bundles
+ * that never call a load function ship no listeners.
  */
-function addGlobal() {
-  if (!window.__k) {
-    window.__k = {
-      dm: dataMap,
-      u: getUrl,
-      d: dataAssets,
-      i: imageAssets
-    };
+let registered;
+function registerResolvers() {
+  if (!registered) {
+    registered = 1;
+    on('i', url => imageAssets[url]);
+    on('d', url => dataAssets[url]);
+    on('dm', obj => dataMap.get(obj));
   }
 }
 
@@ -266,7 +266,7 @@ export function setDataPath(path) {
  * @returns {Promise<HTMLImageElement>} A deferred promise. Promise resolves with the Image.
  */
 export function loadImage(url) {
-  addGlobal();
+  registerResolvers();
 
   return new Promise((resolve, reject) => {
     let resolvedUrl, image, fullUrl;
@@ -397,7 +397,7 @@ export function loadAudio(url) {
  * @returns {Promise} A deferred promise. Promise resolves with the contents of the file. If the file is a JSON file, the contents will be parsed as JSON.
  */
 export function loadData(url) {
-  addGlobal();
+  registerResolvers();
   let resolvedUrl, fullUrl;
 
   resolvedUrl = joinPath(dataPath, url);
@@ -450,7 +450,7 @@ export function loadData(url) {
  * @returns {Promise<any[]>} A deferred promise. Resolves with all the loaded assets.
  */
 export function load(...urls) {
-  addGlobal();
+  registerResolvers();
 
   return Promise.all(
     urls.map(asset => {
@@ -473,7 +473,7 @@ export function _reset() {
   dataAssets = {};
 
   imagePath = audioPath = dataPath = '';
-  window.__k = undefined;
+  registered = 0;
 
   if (getCanPlay._r) {
     /* eslint-disable-next-line no-func-assign */

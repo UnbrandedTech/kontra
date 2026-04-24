@@ -8,6 +8,7 @@ describe('events', () => {
     expect(events.on).to.be.an('function');
     expect(events.off).to.be.an('function');
     expect(events.emit).to.be.an('function');
+    expect(events.query).to.be.an('function');
   });
 
   // --------------------------------------------------
@@ -132,6 +133,59 @@ describe('events', () => {
       }
 
       expect(fn).to.not.throw();
+    });
+  });
+
+  // --------------------------------------------------
+  // query
+  // --------------------------------------------------
+  describe('query', () => {
+    afterEach(() => {
+      delete events.callbacks.foo;
+    });
+
+    it('should return undefined if no callback is registered', () => {
+      expect(events.query('foo')).to.equal(undefined);
+    });
+
+    it('should return undefined if all callbacks return nullish', () => {
+      events.on('foo', () => undefined);
+      events.on('foo', () => null);
+
+      expect(events.query('foo')).to.equal(undefined);
+    });
+
+    it('should return the first non-nullish value from a callback', () => {
+      events.on('foo', () => undefined);
+      events.on('foo', () => 'second');
+      events.on('foo', () => 'third');
+
+      expect(events.query('foo')).to.equal('second');
+    });
+
+    it('should short-circuit once a callback returns a non-nullish value', () => {
+      let spy = sinon.spy();
+      events.on('foo', () => 'hit');
+      events.on('foo', spy);
+
+      events.query('foo');
+
+      expect(spy.called).to.equal(false);
+    });
+
+    it('should pass all parameters to the callbacks', () => {
+      let spy = sinon.spy();
+      events.on('foo', spy);
+
+      events.query('foo', 1, 2, 3);
+
+      expect(spy.calledWith(1, 2, 3)).to.equal(true);
+    });
+
+    it('should return falsy non-nullish values like 0 and empty string', () => {
+      events.on('foo', () => 0);
+
+      expect(events.query('foo')).to.equal(0);
     });
   });
 });
