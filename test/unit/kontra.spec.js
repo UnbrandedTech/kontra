@@ -38,6 +38,8 @@ describe('kontra', () => {
     expect(kontraExports.on).to.exist;
     expect(kontraExports.off).to.exist;
     expect(kontraExports.emit).to.exist;
+    expect(kontraExports.once).to.exist;
+    expect(kontraExports.query).to.exist;
   });
 
   it('should export gameLoop api', () => {
@@ -95,6 +97,10 @@ describe('kontra', () => {
     expect(kontraExports.onKey).to.exist;
     expect(kontraExports.offKey).to.exist;
     expect(kontraExports.keyPressed).to.exist;
+  });
+
+  it('should export LDtk api', () => {
+    expect(kontraExports.LDtk).to.exist;
   });
 
   it('should export plugin api', () => {

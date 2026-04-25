@@ -1,6 +1,6 @@
 import { getContext } from './core.js';
 import Updatable from './updatable.js';
-import { on } from './events.js';
+import { once } from './events.js';
 import { rotatePoint, clamp } from './helpers.js';
 import { noop, removeFromArray } from './utils.js';
 
@@ -267,9 +267,14 @@ class GameObject extends Updatable {
     // uf = update function
     this._uf = update;
 
-    on('init', () => {
-      this.context ??= getContext();
-    });
+    // defer context assignment only when init hasn't fired yet;
+    // registering unconditionally keeps the listener (and this
+    // object) alive forever when init has already happened
+    if (!this.context) {
+      once('init', () => {
+        this.context ??= getContext();
+      });
+    }
   }
 
   /**
@@ -361,13 +366,26 @@ class GameObject extends Updatable {
 
     // @ifdef GAMEOBJECT_GROUP
     // perform all transforms on the parent before rendering the
-    // children
-    let children = this.children;
-    children.map(child => child.render && child.render());
+    // children. extracted into its own method so subclasses that
+    // override `draw()` can also skip or filter child rendering —
+    // e.g. `drawChildren() {}` to render nothing, or `drawChildren()
+    // { super.drawChildren(); }` with a guard to conditionally run
+    this.drawChildren();
     // @endif
 
     context.restore();
   }
+
+  // @ifdef GAMEOBJECT_GROUP
+  /**
+   * Render this game object's children. Called by [render](api/gameObject#render) after the parent's [draw](api/gameObject#draw). Override this in a subclass to skip, filter, or otherwise customize child rendering without having to reimplement the transform pipeline.
+   * @memberof GameObject
+   * @function drawChildren
+   */
+  drawChildren() {
+    this.children.map(child => child.render && child.render());
+  }
+  // @endif
 
   /**
    * Draw the game object at its X and Y position, taking into account rotation, scale, and anchor.

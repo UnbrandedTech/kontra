@@ -62,6 +62,59 @@ export function emit(event, ...args) {
   (callbacks[event] || []).map(fn => fn(...args));
 }
 
+/**
+ * Register a callback that fires once and then removes itself. Useful for one-shot lifecycle events (such as [init](api/events#Lifecycle-Events)) where leaving a listener in place would retain the object that registered it — a common source of memory leaks when short-lived objects are created after the event has already fired.
+ *
+ * Returns a canceller function for the rare case where the caller needs to unregister before the event has fired (e.g. destroying the object prior to init).
+ *
+ * ```js
+ * import { once, emit } from 'kontra';
+ *
+ * once('myEvent', (a, b) => console.log(a, b));
+ * emit('myEvent', 1, 2);  //=> 1 2
+ * emit('myEvent', 3, 4);  // nothing — listener already removed
+ * ```
+ * @function once
+ *
+ * @param {String} event - Name of the event.
+ * @param {Function} callback - Function called when the event is first emitted.
+ *
+ * @returns {Function} Canceller — call to remove the listener before it has fired.
+ */
+export function once(event, callback) {
+  function wrapped(...args) {
+    off(event, wrapped);
+    callback(...args);
+  }
+  on(event, wrapped);
+  return () => off(event, wrapped);
+}
+
+/**
+ * Call callback functions for the event in order and return the first non-nullish value returned by a callback. This turns the event bus into a service locator: modules can register resolvers via [on](api/events#on) without statically importing each other, keeping bundles tree-shakeable. Used internally to resolve asset lookups from [TileEngine](api/tileEngine) without coupling it to the asset loader.
+ *
+ * ```js
+ * import { on, query } from 'kontra';
+ *
+ * on('findUser', id => users[id]);
+ * let user = query('findUser', 42);
+ * ```
+ * @function query
+ *
+ * @param {String} event - Name of the event.
+ * @param {...*} args - Comma separated list of arguments passed to all callbacks.
+ *
+ * @returns {*} The first non-nullish value returned by a callback, or `undefined` if no callback returned a value.
+ */
+export function query(event, ...args) {
+  let result;
+  return (
+    (callbacks[event] || []).find(
+      fn => (result = fn(...args)) != null
+    ) && result
+  );
+}
+
 // expose for testing
 export function _reset() {
   Object.keys(callbacks).map(key => {

@@ -1,6 +1,10 @@
 import GameLoop from '../../src/gameLoop.js';
 import { _reset, init, getContext } from '../../src/core.js';
-import { on } from '../../src/events.js';
+import {
+  on,
+  callbacks,
+  _reset as resetEvents
+} from '../../src/events.js';
 import { noop } from '../../src/utils.js';
 import { simulateEvent } from '../utils.js';
 
@@ -55,6 +59,16 @@ describe('gameLoop', () => {
       init(canvas);
 
       expect(loop.context).to.equal(true);
+    });
+
+    it('should not register an init listener when init has already fired', () => {
+      // issue #414: construction after init must not leak
+      resetEvents();
+      GameLoop({ render: noop });
+
+      expect(callbacks.init).to.satisfy(
+        c => c == null || c.length == 0
+      );
     });
   });
 

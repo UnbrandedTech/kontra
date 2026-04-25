@@ -1,5 +1,10 @@
 import GameObject, { GameObjectClass } from '../../src/gameObject.js';
 import { _reset, init, getContext } from '../../src/core.js';
+import {
+  callbacks,
+  _reset as resetEvents,
+  emit
+} from '../../src/events.js';
 import { noop } from '../../src/utils.js';
 import { degToRad } from '../../src/helpers.js';
 import Vector from '../../src/vector.js';
@@ -108,6 +113,29 @@ describe(
         init(canvas);
 
         expect(gameObject.context).to.equal(true);
+      });
+
+      it('should not register an init listener when init has already fired', () => {
+        // beforeEach's setup() calls init, so context is already
+        // available at construction; construction must not leak
+        // a listener onto the event bus (issue #414)
+        resetEvents();
+        GameObject();
+
+        expect(callbacks.init).to.satisfy(
+          c => c == null || c.length == 0
+        );
+      });
+
+      it('should clean up its init listener after firing', () => {
+        _reset();
+        resetEvents();
+
+        GameObject();
+
+        expect(callbacks.init).to.have.lengthOf(1);
+        emit('init');
+        expect(callbacks.init).to.have.lengthOf(0);
       });
 
       if (testContext.GAMEOBJECT_ANCHOR) {
@@ -501,6 +529,39 @@ describe(
           gameObject.render();
 
           expect(child.render.called).to.be.true;
+        });
+
+        it('should delegate child rendering through drawChildren so subclasses can override it (#356)', () => {
+          // subclass skips children by overriding drawChildren
+          class NoKids extends GameObjectClass {
+            drawChildren() {}
+          }
+
+          let child = { render: sinon.stub() };
+          let parent = new NoKids();
+          parent.children = [child];
+          parent.render();
+
+          expect(child.render.called).to.be.false;
+        });
+
+        it('should let a subclass filter which children render', () => {
+          class SelectiveKids extends GameObjectClass {
+            drawChildren() {
+              this.children
+                .filter(c => c.visible)
+                .map(c => c.render());
+            }
+          }
+
+          let hidden = { render: sinon.stub(), visible: false };
+          let shown = { render: sinon.stub(), visible: true };
+          let parent = new SelectiveKids();
+          parent.children = [hidden, shown];
+          parent.render();
+
+          expect(hidden.render.called).to.be.false;
+          expect(shown.render.called).to.be.true;
         });
       } else {
         it('should not call render on each child', () => {

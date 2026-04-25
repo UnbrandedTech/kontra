@@ -5,10 +5,16 @@ import {
   getContext,
   getCanvas
 } from '../../src/core.js';
+import {
+  emit,
+  callbacks,
+  _reset as resetEvents
+} from '../../src/events.js';
 import { noop } from '../../src/utils.js';
 
 // test-context:start
 let testContext = {
+  TILEENGINE_ANIMATED: true,
   TILEENGINE_CAMERA: true,
   TILEENGINE_DYNAMIC: true,
   TILEENGINE_QUERY: true,
@@ -174,6 +180,24 @@ describe(
 
         expect(tileEngine._p.called).to.be.true;
       });
+
+      it('should not register an init listener when init has already fired', () => {
+        // issue #414: constructing after init must not leak a
+        // listener that retains the object forever
+        resetEvents();
+        TileEngine({
+          tilewidth: 10,
+          tileheight: 10,
+          width: 50,
+          height: 50,
+          tilesets: [{ image: new Image() }],
+          layers: [{ name: 'test', data: [0] }]
+        });
+
+        expect(callbacks.init).to.satisfy(
+          c => c == null || c.length == 0
+        );
+      });
     });
 
     // --------------------------------------------------
@@ -232,6 +256,37 @@ describe(
           tileEngine.sx = 10;
           tileEngine.sy = 20;
 
+          expect(tileEngine.sx).to.equal(0);
+          expect(tileEngine.sy).to.equal(0);
+        });
+
+        it('should factor a uniform context scale into the max clamp', () => {
+          // mapwidth/mapheight = 700, canvas = 600, scale = 2 ⇒
+          // visible map is 1400, so camera max is 1400 - 600 = 800
+          getContext().scale(2, 2);
+          tileEngine.sx = 10000;
+          tileEngine.sy = 10000;
+
+          expect(tileEngine.sx).to.equal(800);
+          expect(tileEngine.sy).to.equal(800);
+        });
+
+        it('should factor non-uniform scale into each axis independently', () => {
+          getContext().scale(3, 2);
+          tileEngine.sx = 10000;
+          tileEngine.sy = 10000;
+
+          // x: 700*3 - 600 = 1500; y: 700*2 - 600 = 800
+          expect(tileEngine.sx).to.equal(1500);
+          expect(tileEngine.sy).to.equal(800);
+        });
+
+        it('should clamp to 0 when scale shrinks the map below the canvas', () => {
+          getContext().scale(0.5, 0.5);
+          tileEngine.sx = 100;
+          tileEngine.sy = 100;
+
+          // 700*0.5 = 350 < 600, so max clamps to 0
           expect(tileEngine.sx).to.equal(0);
           expect(tileEngine.sy).to.equal(0);
         });
@@ -673,6 +728,117 @@ describe(
         });
       }
     });
+
+    // --------------------------------------------------
+    // animated tiles (#345)
+    // --------------------------------------------------
+    if (testContext.TILEENGINE_ANIMATED) {
+      describe('animated tiles', () => {
+        function animatedEngine(props = {}) {
+          return TileEngine({
+            tilewidth: 10,
+            tileheight: 10,
+            width: 2,
+            height: 1,
+            tilesets: [
+              {
+                firstgid: 1,
+                image: new Image(30, 10),
+                columns: 3,
+                tiles: [
+                  {
+                    id: 0,
+                    animation: [
+                      { tileid: 0, duration: 100 },
+                      { tileid: 1, duration: 100 },
+                      { tileid: 2, duration: 100 }
+                    ]
+                  }
+                ]
+              }
+            ],
+            layers: [{ name: 'L', data: [1, 2] }],
+            ...props
+          });
+        }
+
+        it('should collect animated tile metadata from tilesets', () => {
+          let te = animatedEngine();
+          expect(te._at[1]).to.exist;
+          expect(te._at[1].frames).to.have.lengthOf(3);
+          // frame tileids are stored as global gids (firstgid+id)
+          expect(te._at[1].frames[0].tileid).to.equal(1);
+          expect(te._at[1].frames[2].tileid).to.equal(3);
+        });
+
+        it('should not register a tick listener when no tiles are animated', () => {
+          // fresh event bus so the check is unambiguous
+          resetEvents();
+          TileEngine({
+            tilewidth: 10,
+            tileheight: 10,
+            width: 1,
+            height: 1,
+            tilesets: [{ image: new Image(10, 10) }],
+            layers: [{ name: 'L', data: [1] }]
+          });
+          expect(callbacks.tick).to.satisfy(
+            c => c == null || c.length == 0
+          );
+        });
+
+        it('should register exactly one tick listener when at least one tile is animated', () => {
+          resetEvents();
+          animatedEngine();
+          expect(callbacks.tick).to.have.lengthOf(1);
+        });
+
+        it('should draw frame 0 before any ticks fire', () => {
+          let te = animatedEngine();
+          let spy = sinon.stub(te._ctx, 'drawImage').callsFake(noop);
+          te._p();
+
+          // cell 0 holds animated tile id 1 -> frame 0 -> gid 1 ->
+          // source x = 0 in the tileset; cell 1 is static gid 2 ->
+          // source x = 10
+          let srcXs = spy.getCalls().map(c => c.args[1]);
+          expect(srcXs).to.include(0);
+          expect(srcXs).to.include(10);
+        });
+
+        it('should advance to the next frame after enough ticks', () => {
+          let te = animatedEngine();
+          let now = 1000;
+          let orig = performance.now;
+          performance.now = () => now;
+          try {
+            emit('tick'); // primes lt, dt is 0
+            now += 150; // beyond frame 0 duration of 100
+            emit('tick');
+          } finally {
+            performance.now = orig;
+          }
+          expect(te._at[1].i).to.equal(1);
+          expect(te._d).to.equal(1);
+        });
+
+        it('should wrap back to the first frame after the last one', () => {
+          let te = animatedEngine();
+          let now = 0;
+          let orig = performance.now;
+          performance.now = () => now;
+          try {
+            emit('tick');
+            now += 350; // three frames of 100ms each
+            emit('tick');
+          } finally {
+            performance.now = orig;
+          }
+          // three full frame advances -> back to index 0
+          expect(te._at[1].i).to.equal(0);
+        });
+      });
+    }
 
     // --------------------------------------------------
     // tileEngine.renderLayer
@@ -1560,8 +1726,7 @@ describe(
     // tileEngine.getPosition
     // --------------------------------------------------
     describe('getPosition', () => {
-      let tileEngine,
-       canvas;
+      let tileEngine, canvas;
       beforeEach(() => {
         canvas = getCanvas();
         canvas.style.position = 'absolute';

@@ -1,6 +1,6 @@
 import { getContext } from './core.js';
 import { GameObjectClass } from './gameObject.js';
-import { on, off } from './events.js';
+import { once } from './events.js';
 import {
   srOnlyStyle,
   focusParams,
@@ -216,9 +216,10 @@ class Scene {
 
     if (this.context) {
       this._i();
+    } else {
+      // ci = cancel-init; stored so destroy() can cancel before fire
+      this._ci = once('init', this._i);
     }
-
-    on('init', this._i);
   }
 
   set objects(value) {
@@ -317,7 +318,7 @@ class Scene {
    * @function destroy
    */
   destroy() {
-    off('init', this._i);
+    this._ci?.();
     this._dn.remove();
     this._o.map(object => object.destroy && object.destroy());
   }
