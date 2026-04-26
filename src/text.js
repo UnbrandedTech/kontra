@@ -243,7 +243,12 @@ class Text extends GameObjectClass {
 
   draw() {
     let alignX = 0;
-    let textAlign = this.textAlign;
+    // default to 'left' when the user didn't set textAlign — without
+    // this, builds that strip TEXT_RTL (so the rtl-aware fallback
+    // below doesn't run) would assign context.textAlign = '', which
+    // Canvas2D silently rejects and leaks the previous draw's
+    // alignment forward
+    let textAlign = this.textAlign || 'left';
     let context = this.context;
 
     // @ifdef TEXT_RTL
