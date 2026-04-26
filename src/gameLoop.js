@@ -54,6 +54,7 @@ function clear(context) {
  * @param {Boolean}  [properties.clearCanvas=true] - Clear the canvas every frame before the `render()` function is called.
  * @param {CanvasRenderingContext2D} [properties.context] - The context that should be cleared each frame if `clearContext` is not set to `false`. Defaults to [core.getContext()](api/core#getContext).
  * @param {Boolean} [properties.blur=false] - If the loop should still update and render if the page does not have focus.
+ * @param {Number} [properties.maxCatchUp=Infinity] - Maximum number of update() calls per frame when the accumulator has fallen behind. Without a cap, a slow update can spiral as catch-ups extend the next frame, queueing more catch-ups. Setting this to 2 lets the simulation slow gracefully under load instead.
  */
 export default function GameLoop({
   fps = 60,
@@ -61,7 +62,8 @@ export default function GameLoop({
   update = noop,
   render,
   context = getContext(),
-  blur = false
+  blur = false,
+  maxCatchUp = Infinity
 } = {}) {
   // check for required functions
   // @ifdef DEBUG
@@ -114,12 +116,20 @@ export default function GameLoop({
 
     accumulator += dt;
 
-    while (accumulator >= delta) {
+    // cap catch-up updates per render frame so a slow update tick
+    // can't queue an ever-growing chain of catch-ups (the classic
+    // accumulator spiral of death). default Infinity preserves the
+    // original "always catch up" behaviour.
+    let catches = 0;
+    while (accumulator >= delta && catches < maxCatchUp) {
       emit('tick');
       loop.update(step);
-
       accumulator -= delta;
+      catches++;
     }
+    // if we hit the cap, drop the rest so next frame doesn't start
+    // already overflowing — graceful slow-motion under load
+    if (catches >= maxCatchUp) accumulator = 0;
 
     clearFn(loop.context);
     loop.render();

@@ -204,6 +204,54 @@ describe('gameLoop', () => {
       expect(count).to.equal(2);
     });
 
+    it('should cap catch-up updates per frame when maxCatchUp is set', () => {
+      let count = 0;
+
+      loop = GameLoop({
+        update() {
+          count++;
+        },
+        render: noop,
+        clearCanvas: false,
+        maxCatchUp: 2
+      });
+
+      // 10 frames of accumulated time — without the cap this would
+      // run 10 update calls. with maxCatchUp=2 only two should fire.
+      loop._last = performance.now() - (1e3 / 60) * 10;
+      loop._frame();
+
+      expect(count).to.equal(2);
+    });
+
+    it('should drop the accumulator when maxCatchUp is hit so the next frame does not spiral', () => {
+      let count = 0;
+
+      loop = GameLoop({
+        update() {
+          count++;
+        },
+        render: noop,
+        clearCanvas: false,
+        maxCatchUp: 2
+      });
+
+      // first frame burns through 10 frames worth of accumulated
+      // time but only fires twice (capped)
+      loop._last = performance.now() - (1e3 / 60) * 10;
+      loop._frame();
+      expect(count).to.equal(2);
+
+      // a normal-length frame after the cap should fire once, not
+      // resume the queued backlog. (1.5× delta keeps the
+      // subtraction clear of the >= threshold under float roundoff
+      // — the same trick the "multiple calls" test uses.)
+      count = 0;
+      loop._last = performance.now() - (1e3 / 60) * 1.5;
+      loop._frame();
+      expect(count).to.equal(1);
+    });
+
     it('should change the frame rate if passed fps', () => {
       let count = 0;
 
