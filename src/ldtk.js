@@ -188,13 +188,46 @@ export default function LDtk(project, options = {}) {
     }
   });
 
+  // entities live on Entities-typed layers; LDtk treats them as
+  // game-side data rather than tile geometry, so they're returned
+  // as a separate flat list. fields are flattened from LDtk's
+  // verbose `fieldInstances` form into a plain {name: value} map
+  // so user code can read `entity.fields.speed` instead of walking
+  // an array on every access.
+  let entities = [];
+  allLayers.map(layer => {
+    if (layer.__type != 'Entities') return;
+    (layer.entityInstances || []).map(e => {
+      // skip malformed entries — real LDtk data always has px,
+      // but defensive against partial fixtures and projects edited
+      // by hand
+      if (!e.px) return;
+      let fields = {};
+      (e.fieldInstances || []).map(f => {
+        fields[f.__identifier] = f.__value;
+      });
+      let pivot = e.__pivot || [0, 0];
+      entities.push({
+        identifier: e.__identifier,
+        x: e.px[0],
+        y: e.px[1],
+        width: e.width || 0,
+        height: e.height || 0,
+        pivot: { x: pivot[0], y: pivot[1] },
+        tags: e.__tags || [],
+        fields
+      });
+    });
+  });
+
   return {
     width: cWid,
     height: cHei,
     tilewidth: gridSize,
     tileheight: gridSize,
     tilesets,
-    layers
+    layers,
+    entities
   };
 }
 // @endif
