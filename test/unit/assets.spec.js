@@ -1,5 +1,5 @@
 import * as assets from '../../src/assets.js';
-import { on, off } from '../../src/events.js';
+import { on, off, query } from '../../src/events.js';
 
 // --------------------------------------------------
 // assets
@@ -427,6 +427,33 @@ describe('assets', () => {
       }
       on('assetLoaded', loaded);
       assets.loadAudio('/audio/shoot.mp3').catch(done);
+    });
+
+    it('should resolve loaded audio via query("a", url)', done => {
+      assets
+        .loadAudio('/audio/shoot.mp3')
+        .then(audio => {
+          // resolves under all three keys the loader registered:
+          // name (path minus extension), the relative URL, and the
+          // absolute URL
+          expect(query('a', '/audio/shoot')).to.equal(audio);
+          expect(query('a', '/audio/shoot.mp3')).to.equal(audio);
+          expect(
+            query(
+              'a',
+              new URL('/audio/shoot.mp3', location.href).href
+            )
+          ).to.equal(audio);
+          done();
+        })
+        .catch(done);
+    });
+
+    it('should not register the "a" resolver until loadAudio is called', () => {
+      // _reset() in beforeEach clears the resolver flag; until any
+      // load* function is called, the resolver should be absent so
+      // bundles that never load audio carry no listener
+      expect(query('a', '/audio/shoot.mp3')).to.equal(undefined);
     });
   });
 

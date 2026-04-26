@@ -191,6 +191,7 @@ function registerResolvers() {
   if (!registered) {
     registered = 1;
     on('i', url => imageAssets[url]);
+    on('a', url => audioAssets[url]);
     on('d', url => dataAssets[url]);
     on('dm', obj => dataMap.get(obj));
   }
@@ -322,6 +323,8 @@ export function loadImage(url) {
  * @returns {Promise<HTMLAudioElement>} A deferred promise. Promise resolves with the Audio.
  */
 export function loadAudio(url) {
+  registerResolvers();
+
   return new Promise((resolve, reject) => {
     let _url = url,
       audioEl,

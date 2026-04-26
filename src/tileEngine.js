@@ -353,6 +353,38 @@ class TileEngine {
       object.parent = null;
     });
   }
+
+  /**
+   * Center the camera on an object's visual midpoint. The [sx/sy setters](api/tileEngine#sx) clamp at the map edges, so a target near the border keeps the camera parked while the target moves off-center — the standard "scroll until the edge, then let the player slide to the corner" behaviour from the [tileEngine camera demo](https://straker.github.io/kontra/tileEngine/camera/).
+   *
+   * ```js
+   * import { Sprite, TileEngine, GameLoop } from 'kontra';
+   *
+   * let tileEngine = TileEngine({ ... });
+   * let player = Sprite({ ... });
+   *
+   * let loop = GameLoop({
+   *   update() {
+   *     player.update();
+   *     tileEngine.lookAt(player);
+   *   },
+   *   render() {
+   *     tileEngine.render();
+   *     player.render();
+   *   }
+   * });
+   * ```
+   * @memberof TileEngine
+   * @function lookAt
+   *
+   * @param {{x: Number, y: Number, width?: Number, height?: Number, anchor?: {x: Number, y: Number}}} object - Object to focus on. Anchor-aware: a sprite's on-screen centre is used regardless of whether it's anchored to its top-left or its centre.
+   */
+  lookAt(object) {
+    let { x, y, width = 0, height = 0 } = getWorldRect(object);
+    let canvas = getCanvas();
+    this.sx = x + width / 2 - canvas.width / 2;
+    this.sy = y + height / 2 - canvas.height / 2;
+  }
   // @endif
 
   /**

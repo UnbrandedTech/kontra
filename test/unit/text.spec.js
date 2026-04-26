@@ -387,6 +387,26 @@ describe(
           expect(text.context.fillText.calledWith(text.text, 1000, 0))
             .to.be.true;
         });
+
+        it("should default context.textAlign to 'left' when textAlign was not set", () => {
+          // regression: builds with TEXT_ALIGN but without TEXT_RTL
+          // would leave textAlign as '' and assign context.textAlign
+          // = '', which Canvas2D silently ignores — leaking the
+          // previous draw's alignment forward. capture context.
+          // textAlign at fillText time (super.render()'s save/
+          // restore wraps draw so we can't check after the fact).
+          let text = Text({
+            text: 'Hello',
+            font: '32px Arial',
+            color: 'black'
+          });
+          let alignAtDraw;
+          sinon.stub(text.context, 'fillText').callsFake(() => {
+            alignAtDraw = text.context.textAlign;
+          });
+          text.render();
+          expect(alignAtDraw).to.equal('left');
+        });
       }
 
       if (testContext.TEXT_RTL) {

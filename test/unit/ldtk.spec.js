@@ -672,6 +672,177 @@ describe('LDtk', () => {
     });
   });
 
+  describe('entities', () => {
+    function entityProject(entityInstances) {
+      return project({
+        levels: [
+          level({
+            layerInstances: [
+              {
+                __identifier: 'Entities',
+                __type: 'Entities',
+                __gridSize: 16,
+                entityInstances
+              }
+            ]
+          })
+        ]
+      });
+    }
+
+    it('extracts each entity with position, size, pivot, and tags', () => {
+      let config = LDtk(
+        entityProject([
+          {
+            __identifier: 'Player',
+            __pivot: [0.5, 1],
+            __tags: ['Hero'],
+            px: [80, 120],
+            width: 16,
+            height: 32,
+            fieldInstances: []
+          }
+        ])
+      );
+      expect(config.entities).to.have.lengthOf(1);
+      let e = config.entities[0];
+      expect(e.identifier).to.equal('Player');
+      expect(e.x).to.equal(80);
+      expect(e.y).to.equal(120);
+      expect(e.width).to.equal(16);
+      expect(e.height).to.equal(32);
+      expect(e.pivot).to.eql({ x: 0.5, y: 1 });
+      expect(e.tags).to.eql(['Hero']);
+    });
+
+    it('flattens fieldInstances into a {name: value} map', () => {
+      let config = LDtk(
+        entityProject([
+          {
+            __identifier: 'Saw',
+            __pivot: [0.5, 0.5],
+            px: [0, 0],
+            width: 16,
+            height: 16,
+            fieldInstances: [
+              { __identifier: 'phase', __value: 2, __type: 'Int' },
+              {
+                __identifier: 'speed',
+                __value: 0.5,
+                __type: 'Float'
+              },
+              {
+                __identifier: 'waypoints',
+                __value: [
+                  [0, 0],
+                  [10, 0]
+                ],
+                __type: 'Array<Point>'
+              }
+            ]
+          }
+        ])
+      );
+      let e = config.entities[0];
+      expect(e.fields.phase).to.equal(2);
+      expect(e.fields.speed).to.equal(0.5);
+      expect(e.fields.waypoints).to.eql([
+        [0, 0],
+        [10, 0]
+      ]);
+    });
+
+    it('merges entities across multiple Entities layers', () => {
+      let config = LDtk(
+        project({
+          levels: [
+            level({
+              layerInstances: [
+                {
+                  __identifier: 'Hazards',
+                  __type: 'Entities',
+                  __gridSize: 16,
+                  entityInstances: [
+                    {
+                      __identifier: 'Spike',
+                      __pivot: [0, 0],
+                      px: [10, 10],
+                      width: 8,
+                      height: 8,
+                      fieldInstances: []
+                    }
+                  ]
+                },
+                {
+                  __identifier: 'Pickups',
+                  __type: 'Entities',
+                  __gridSize: 16,
+                  entityInstances: [
+                    {
+                      __identifier: 'Coin',
+                      __pivot: [0.5, 0.5],
+                      px: [50, 50],
+                      width: 8,
+                      height: 8,
+                      fieldInstances: []
+                    }
+                  ]
+                }
+              ]
+            })
+          ]
+        })
+      );
+      expect(config.entities).to.have.lengthOf(2);
+      expect(config.entities.map(e => e.identifier).sort()).to.eql([
+        'Coin',
+        'Spike'
+      ]);
+    });
+
+    it('returns an empty array when no entity layers exist', () => {
+      let config = LDtk(project());
+      expect(config.entities).to.eql([]);
+    });
+
+    it('skips malformed entity records without px', () => {
+      // partial entity (e.g. authored fixture, hand-edit) — should
+      // be ignored rather than crash the importer
+      let config = LDtk(
+        entityProject([
+          { __identifier: 'BadEntity' },
+          {
+            __identifier: 'GoodEntity',
+            __pivot: [0, 0],
+            px: [0, 0],
+            width: 8,
+            height: 8,
+            fieldInstances: []
+          }
+        ])
+      );
+      expect(config.entities).to.have.lengthOf(1);
+      expect(config.entities[0].identifier).to.equal('GoodEntity');
+    });
+
+    it('defaults pivot, tags, and fields when those keys are missing', () => {
+      let config = LDtk(
+        entityProject([
+          {
+            __identifier: 'Bare',
+            px: [10, 20],
+            width: 8,
+            height: 8
+          }
+        ])
+      );
+      let e = config.entities[0];
+      expect(e.pivot).to.eql({ x: 0, y: 0 });
+      expect(e.tags).to.eql([]);
+      expect(e.fields).to.eql({});
+    });
+  });
+
   describe('config shape', () => {
     it('should produce width/height in tiles and tilewidth/tileheight in pixels', () => {
       let config = LDtk(
