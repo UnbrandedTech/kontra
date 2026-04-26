@@ -299,6 +299,81 @@ describe(
     });
 
     // --------------------------------------------------
+    // tileEngine.lookAt (#419)
+    // --------------------------------------------------
+    if (testContext.TILEENGINE_CAMERA) {
+      describe('lookAt', () => {
+        // canvas in setup is 600x600; build a map that's big enough
+        // for meaningful scrolling in both axes (1000x1000)
+        let tileEngine;
+        beforeEach(() => {
+          tileEngine = TileEngine({
+            tilewidth: 10,
+            tileheight: 10,
+            width: 100,
+            height: 100,
+            tilesets: [{ image: new Image() }],
+            layers: [{ name: 'L', data: [0] }]
+          });
+        });
+
+        it('should centre the camera on the object when away from edges', () => {
+          tileEngine.lookAt({
+            x: 500,
+            y: 500,
+            width: 0,
+            height: 0
+          });
+          // centre of a 600x600 canvas is 300; target at 500 ->
+          // sx = 500 - 300 = 200
+          expect(tileEngine.sx).to.equal(200);
+          expect(tileEngine.sy).to.equal(200);
+        });
+
+        it('should clamp to the left/top edge when the object is near the origin', () => {
+          tileEngine.lookAt({ x: 50, y: 50, width: 0, height: 0 });
+          expect(tileEngine.sx).to.equal(0);
+          expect(tileEngine.sy).to.equal(0);
+        });
+
+        it('should clamp to the right/bottom edge when the object is near the map edge', () => {
+          // map 1000, canvas 600 -> max sx/sy = 400
+          tileEngine.lookAt({
+            x: 990,
+            y: 990,
+            width: 0,
+            height: 0
+          });
+          expect(tileEngine.sx).to.equal(400);
+          expect(tileEngine.sy).to.equal(400);
+        });
+
+        it("should use an object's visual centre via getWorldRect", () => {
+          // a sprite at (480, 480) with width/height 40 and default
+          // anchor {0, 0} has its visual centre at (500, 500)
+          tileEngine.lookAt({
+            x: 480,
+            y: 480,
+            width: 40,
+            height: 40,
+            anchor: { x: 0, y: 0 }
+          });
+          expect(tileEngine.sx).to.equal(200);
+          expect(tileEngine.sy).to.equal(200);
+        });
+
+        it('should handle an object with a world transform (nested objects)', () => {
+          // getWorldRect pulls from object.world when available
+          tileEngine.lookAt({
+            world: { x: 500, y: 500, width: 0, height: 0 }
+          });
+          expect(tileEngine.sx).to.equal(200);
+          expect(tileEngine.sy).to.equal(200);
+        });
+      });
+    }
+
+    // --------------------------------------------------
     // tileEngine.render
     // --------------------------------------------------
     describe('render', () => {

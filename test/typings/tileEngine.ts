@@ -57,6 +57,14 @@ tileEngine.getPosition({x: 100, y: 200} as PointerEvent)
 tileEngine.setTileAtLayer('ground', { x, y }, 5);
 tileEngine.setTileAtLayer('ground', { row, col }, 5);
 
+// lookAt (#419) — accepts a bare point, a world-rect object,
+// or a kontra sprite-shaped object
+tileEngine.lookAt({ x: 100, y: 200 });
+tileEngine.lookAt({
+  x: 100, y: 200, width: 32, height: 32,
+  anchor: { x: 0.5, y: 0.5 }
+});
+
 // options
 kontra.TileEngine({
   context: document.createElement('canvas').getContext('2d'),
